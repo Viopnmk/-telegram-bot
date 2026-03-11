@@ -121,3 +121,29 @@ def whale_check():
 def whale(message):
     result=whale_check()
     bot.reply_to(message,result)
+    
+    import schedule
+import time
+
+def daily_report():
+    btc=get_btc()
+    eth=get_eth()
+
+    text=f"""
+📊 每日市场报告
+
+BTC: ${btc}
+
+ETH: ${eth}
+
+市场整体：震荡
+"""
+
+    bot.send_message("你的TelegramID",text)
+
+
+schedule.every().day.at("08:00").do(daily_report)
+
+while True:
+    schedule.run_pending()
+    time.sleep(30)
