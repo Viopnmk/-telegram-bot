@@ -74,11 +74,7 @@ def analyze():
 
     df=get_kline()
 
-    df=get_kline()
-
-if df is None:
-
-    return "K线数据获取失败，请稍后再试"df["rsi"]=ta.momentum.RSIIndicator(df["close"]).rsi()
+    df["rsi"]=ta.momentum.RSIIndicator(df["close"]).rsi()
 
     macd=ta.trend.MACD(df["close"])
 
