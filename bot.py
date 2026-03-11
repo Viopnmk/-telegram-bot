@@ -3,89 +3,178 @@ import requests
 import schedule
 import time
 import threading
+import pandas as pd
+import ta
 
 TOKEN ="8757297012:AAFycJjVLtGEQxp_WV8cz3VqLFOgEyImzCI"
+CHAT_ID =7637508163
 
 bot = telebot.TeleBot(TOKEN)
 
-# =================
-# BTC价格
-# =================
+# ======================
+# 获取BTC价格
+# ======================
+
 def get_btc():
 
-    url="https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+    url="https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
 
     data=requests.get(url).json()
 
-    return data["bitcoin"]["usd"]
+    return float(data["price"])
 
 
-# =================
-# ETH价格
-# =================
+# ======================
+# 获取ETH价格
+# ======================
+
 def get_eth():
 
-    url="https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+    url="https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT"
 
     data=requests.get(url).json()
 
-    return data["ethereum"]["usd"]
+    return float(data["price"])
 
 
-# =================
-# 市场数据
-# =================
-def get_market():
+# ======================
+# 获取K线数据
+# ======================
 
-    url="https://api.coingecko.com/api/v3/global"
+def get_klines():
 
-    data=requests.get(url).json()
-
-    cap=data["data"]["total_market_cap"]["usd"]
-
-    btc_dom=data["data"]["market_cap_percentage"]["btc"]
-
-    return cap,btc_dom
-
-
-# =================
-# BTC分析
-# =================
-def analyze_btc():
-
-    url="https://api.coingecko.com/api/v3/coins/bitcoin"
+    url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
 
     data=requests.get(url).json()
 
-    price=data["market_data"]["current_price"]["usd"]
+    close=[float(x[4]) for x in data]
 
-    change=data["market_data"]["price_change_percentage_24h"]
+    df=pd.DataFrame(close,columns=["close"])
 
-    if change > 2:
+    return df
 
-        trend="短期上涨 📈"
 
-    elif change < -2:
+# ======================
+# RSI计算
+# ======================
 
-        trend="短期下跌 📉"
+def rsi_signal():
+
+    df=get_klines()
+
+    rsi=ta.momentum.RSIIndicator(df["close"]).rsi()
+
+    last=rsi.iloc[-1]
+
+    if last>70:
+        return "超买 📉"
+
+    elif last<30:
+        return "超卖 📈"
+
+    else:
+        return "中性"
+
+
+# ======================
+# MACD计算
+# ======================
+
+def macd_signal():
+
+    df=get_klines()
+
+    macd=ta.trend.MACD(df["close"])
+
+    macd_line=macd.macd().iloc[-1]
+
+    signal_line=macd.macd_signal().iloc[-1]
+
+    if macd_line>signal_line:
+
+        return "多头趋势 📈"
 
     else:
 
-        trend="震荡行情"
-
-    return price,change,trend
+        return "空头趋势 📉"
 
 
-# =================
-# Whale监控
-# =================
-def whale_check():
+# ======================
+# 交易策略
+# ======================
+
+def trading_strategy():
+
+    price=get_btc()
+
+    rsi=rsi_signal()
+
+    macd=macd_signal()
+
+    support=price*0.97
+
+    resistance=price*1.05
+
+    text=f"""
+
+📊 BTC Quant Strategy
+
+Price
+${price}
+
+Support
+${support:.0f}
+
+Resistance
+${resistance:.0f}
+
+RSI
+{rsi}
+
+MACD
+{macd}
+
+"""
+
+    bot.send_message(CHAT_ID,text)
+
+
+# ======================
+# 市场报告
+# ======================
+
+def market_report():
+
+    btc=get_btc()
+
+    eth=get_eth()
+
+    text=f"""
+
+📊 Daily Market Report
+
+BTC
+${btc}
+
+ETH
+${eth}
+
+"""
+
+    bot.send_message(CHAT_ID,text)
+
+
+# ======================
+# 巨鲸监控
+# ======================
+
+def whale_alert():
 
     url="https://api.whale-alert.io/v1/transactions?api_key=demo&min_value=5000000"
 
     data=requests.get(url).json()
 
-    if "transactions" in data and len(data["transactions"])>0:
+    if "transactions" in data:
 
         tx=data["transactions"][0]
 
@@ -93,211 +182,32 @@ def whale_check():
 
         coin=tx["symbol"]
 
-        return f"🐳 巨鲸转账\n\n{amount} {coin}"
+        text=f"""
 
-    else:
+🐳 Whale Alert
 
-        return "暂无巨鲸转账"
+{amount} {coin}
 
-
-# =================
-# 稳定币监控
-# =================
-def stable_monitor():
-
-    url="https://api.coingecko.com/api/v3/simple/price?ids=tether,usd-coin&vs_currencies=usd"
-
-    data=requests.get(url).json()
-
-    return "稳定币市场正常运行"
-
-
-# =================
-# 交易策略
-# =================
-def strategy():
-
-    price=get_btc()
-
-    support=price*0.97
-
-    resistance=price*1.05
-
-    text=f"""
-📊 BTC交易策略
-
-当前价格
-${price}
-
-支撑位
-${support:.0f}
-
-压力位
-${resistance:.0f}
-
-策略
-回踩支撑做多
-跌破止损
+Large transfer detected
 """
 
-    return text
+        bot.send_message(CHAT_ID,text)
 
 
-# =================
-# start
-# =================
-@bot.message_handler(commands=['start'])
+# ======================
+# 定时任务
+# ======================
 
-def start(message):
+schedule.every().day.at("08:00").do(market_report)
 
-    text="""
-🍜 烤冷面AI加密助手
+schedule.every().day.at("12:00").do(trading_strategy)
 
-指令列表
-
-/btc BTC价格
-/eth ETH价格
-/market 市场数据
-/analysis AI行情
-/whale 巨鲸监控
-/stable 稳定币监控
-/strategy 交易策略
-"""
-
-    bot.reply_to(message,text)
+schedule.every(15).minutes.do(whale_alert)
 
 
-# =================
-# BTC
-# =================
-@bot.message_handler(commands=['btc'])
-
-def btc(message):
-
-    price=get_btc()
-
-    bot.reply_to(message,f"📈 BTC价格\n\n${price}")
-
-
-# =================
-# ETH
-# =================
-@bot.message_handler(commands=['eth'])
-
-def eth(message):
-
-    price=get_eth()
-
-    bot.reply_to(message,f"📈 ETH价格\n\n${price}")
-
-
-# =================
-# 市场
-# =================
-@bot.message_handler(commands=['market'])
-
-def market(message):
-
-    cap,btc_dom=get_market()
-
-    text=f"""
-🌎 加密市场
-
-总市值
-${cap:,.0f}
-
-BTC市占率
-{btc_dom:.2f}%
-"""
-
-    bot.reply_to(message,text)
-
-
-# =================
-# 分析
-# =================
-@bot.message_handler(commands=['analysis'])
-
-def analysis(message):
-
-    price,change,trend=analyze_btc()
-
-    text=f"""
-📊 BTC行情分析
-
-价格
-${price}
-
-24h涨跌
-{change:.2f}%
-
-趋势
-{trend}
-"""
-
-    bot.reply_to(message,text)
-
-
-# =================
-# Whale
-# =================
-@bot.message_handler(commands=['whale'])
-
-def whale(message):
-
-    result=whale_check()
-
-    bot.reply_to(message,result)
-
-
-# =================
-# 稳定币
-# =================
-@bot.message_handler(commands=['stable'])
-
-def stable(message):
-
-    result=stable_monitor()
-
-    bot.reply_to(message,result)
-
-
-# =================
-# 策略
-# =================
-@bot.message_handler(commands=['strategy'])
-
-def trade(message):
-
-    result=strategy()
-
-    bot.reply_to(message,result)
-
-
-# =================
-# 自动报告
-# =================
-def daily_report():
-
-    btc=get_btc()
-
-    eth=get_eth()
-
-    text=f"""
-📊 每日市场报告
-
-BTC
-${btc}
-
-ETH
-${eth}
-"""
-
-    print(text)
-
-
-schedule.every().day.at("08:00").do(daily_report)
-
+# ======================
+# 启动调度
+# ======================
 
 def run_schedule():
 
@@ -307,8 +217,6 @@ def run_schedule():
 
         time.sleep(30)
 
-
 threading.Thread(target=run_schedule).start()
-
 
 bot.infinity_polling()
