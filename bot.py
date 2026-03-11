@@ -71,6 +71,7 @@ def whale(message):
     bot.reply_to(message,"🐳 巨鲸监控\n\n暂无大额转账")
 
 bot.infinity_polling()
+
 def analyze_btc():
     url="https://api.coingecko.com/api/v3/coins/bitcoin"
     data=requests.get(url).json()
