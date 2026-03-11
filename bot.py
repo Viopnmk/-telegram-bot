@@ -220,3 +220,8 @@ def run_schedule():
 threading.Thread(target=run_schedule).start()
 
 bot.infinity_polling()
+
+@bot.message_handler(commands=['test'])
+def test(message):
+
+    bot.reply_to(message,"机器人正常运行 ✅")
