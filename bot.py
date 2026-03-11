@@ -44,9 +44,25 @@ def get_kline():
 
     url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
 
-    data=requests.get(url).json()
+    r=requests.get(url,timeout=10)
 
-    close=[float(i[4]) for i in data]
+    data=r.json()
+
+    if not isinstance(data,list):
+
+        return None
+
+    close=[]
+
+    for i in data:
+
+        if len(i)>4:
+
+            close.append(float(i[4]))
+
+    if len(close)==0:
+
+        return None
 
     df=pd.DataFrame(close,columns=["close"])
 
@@ -58,7 +74,11 @@ def analyze():
 
     df=get_kline()
 
-    df["rsi"]=ta.momentum.RSIIndicator(df["close"]).rsi()
+    df=get_kline()
+
+if df is None:
+
+    return "K线数据获取失败，请稍后再试"df["rsi"]=ta.momentum.RSIIndicator(df["close"]).rsi()
 
     macd=ta.trend.MACD(df["close"])
 
