@@ -71,3 +71,34 @@ def whale(message):
     bot.reply_to(message,"🐳 巨鲸监控\n\n暂无大额转账")
 
 bot.infinity_polling()
+def analyze_btc():
+    url="https://api.coingecko.com/api/v3/coins/bitcoin"
+    data=requests.get(url).json()
+
+    price=data["market_data"]["current_price"]["usd"]
+    change=data["market_data"]["price_change_percentage_24h"]
+
+    if change > 2:
+        trend="短期偏多 📈"
+    elif change < -2:
+        trend="短期偏空 📉"
+    else:
+        trend="震荡行情"
+
+    return price,change,trend
+
+
+@bot.message_handler(commands=['analysis'])
+def analysis(message):
+    price,change,trend=analyze_btc()
+
+    text=f"""
+📊 BTC AI行情分析
+
+价格: ${price}
+
+24h涨跌: {change:.2f}%
+
+趋势判断: {trend}
+"""
+    bot.reply_to(message,text)
