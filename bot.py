@@ -3,109 +3,159 @@ import requests
 import schedule
 import time
 import threading
+import pandas as pd
+import ta
 
-# =====================
-# 填写你的信息
-# =====================
-
-TOKEN = "8757297012:AAFycJjVLtGEQxp_WV8cz3VqLFOgEyImzCI"
+TOKEN ="8757297012:AAFycJjVLtGEQxp_WV8cz3VqLFOgEyImzCI"
 CHAT_ID =7637508163
 
 bot = telebot.TeleBot(TOKEN)
 
-# =====================
+# ======================
 # 获取BTC价格
-# =====================
+# ======================
 
 def get_btc():
+
     try:
-        url = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
-        data = requests.get(url).json()
+
+        url="https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
+
+        data=requests.get(url).json()
+
         return float(data["price"])
+
     except:
+
         return 0
 
 
-# =====================
-# 获取ETH价格
-# =====================
+# ======================
+# 获取K线
+# ======================
 
-def get_eth():
-    try:
-        url = "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT"
-        data = requests.get(url).json()
-        return float(data["price"])
-    except:
-        return 0
+def get_klines():
 
+    url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
 
-# =====================
-# /start 指令
-# =====================
+    data=requests.get(url).json()
 
-@bot.message_handler(commands=['start'])
-def start(message):
+    close=[float(x[4]) for x in data]
 
-    bot.reply_to(message,"机器人已启动 🚀")
+    df=pd.DataFrame(close,columns=["close"])
+
+    return df
 
 
-# =====================
-# BTC价格
-# =====================
+# ======================
+# RSI指标
+# ======================
 
-@bot.message_handler(commands=['btc'])
-def btc(message):
+def get_rsi():
 
-    price = get_btc()
+    df=get_klines()
 
-    bot.reply_to(message,f"BTC 价格: ${price}")
+    rsi=ta.momentum.RSIIndicator(df["close"]).rsi()
 
-
-# =====================
-# ETH价格
-# =====================
-
-@bot.message_handler(commands=['eth'])
-def eth(message):
-
-    price = get_eth()
-
-    bot.reply_to(message,f"ETH 价格: ${price}")
+    return rsi.iloc[-1]
 
 
-# =====================
-# 每日市场报告
-# =====================
+# ======================
+# MACD指标
+# ======================
 
-def market_report():
+def get_macd():
 
-    btc = get_btc()
+    df=get_klines()
 
-    eth = get_eth()
+    macd=ta.trend.MACD(df["close"])
+
+    macd_line=macd.macd().iloc[-1]
+
+    signal_line=macd.macd_signal().iloc[-1]
+
+    if macd_line>signal_line:
+
+        return "Bullish 📈"
+
+    else:
+
+        return "Bearish 📉"
+
+
+# ======================
+# 量化策略
+# ======================
+
+def quant_strategy():
+
+    price=get_btc()
+
+    rsi=get_rsi()
+
+    macd=get_macd()
+
+    if rsi<30:
+
+        signal="可能超卖，考虑做多"
+
+    elif rsi>70:
+
+        signal="可能超买，注意回调"
+
+    else:
+
+        signal="市场中性"
 
     text=f"""
-📊 Daily Market Report
+📊 BTC Quant Report
 
-BTC
-${btc}
+Price
+${price}
 
-ETH
-${eth}
+RSI
+{rsi:.2f}
+
+MACD
+{macd}
+
+Strategy
+{signal}
 """
 
     bot.send_message(CHAT_ID,text)
 
 
-# =====================
-# 定时任务
-# =====================
+# ======================
+# 手动命令
+# ======================
 
-schedule.every().day.at("08:00").do(market_report)
+@bot.message_handler(commands=['btc'])
+
+def btc(message):
+
+    price=get_btc()
+
+    bot.reply_to(message,f"BTC价格 ${price}")
 
 
-# =====================
+@bot.message_handler(commands=['quant'])
+
+def quant(message):
+
+    quant_strategy()
+
+
+# ======================
+# 自动推送
+# ======================
+
+schedule.every().hour.do(quant_strategy)
+
+
+# ======================
 # 运行定时任务
-# =====================
+# ======================
 
 def run_schedule():
 
@@ -119,18 +169,17 @@ def run_schedule():
 threading.Thread(target=run_schedule).start()
 
 
-# =====================
+# ======================
 # 启动提示
-# =====================
+# ======================
 
 try:
-    bot.send_message(CHAT_ID,"机器人启动成功 ✅")
+
+    bot.send_message(CHAT_ID,"量化机器人启动成功 🤖")
+
 except:
+
     pass
 
-
-# =====================
-# 启动机器人
-# =====================
 
 bot.infinity_polling()
