@@ -4,62 +4,78 @@ import ta
 
 def btc_analysis():
 
-    url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
+    try:
 
-    r=requests.get(url,timeout=10)
+        url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
 
-    data=r.json()
+        r=requests.get(url,timeout=10)
 
-    close=[float(i[4]) for i in data]
+        data=r.json()
 
-    df=pd.DataFrame(close,columns=["close"])
+        if not isinstance(data,list):
 
-    df["rsi"]=ta.momentum.RSIIndicator(df["close"]).rsi()
+            return "K线数据获取失败"
 
-    macd=ta.trend.MACD(df["close"])
+        close=[]
 
-    df["macd"]=macd.macd()
+        for i in data:
 
-    df["signal"]=macd.macd_signal()
+            if len(i)>4:
 
-    rsi=df["rsi"].iloc[-1]
+                close.append(float(i[4]))
 
-    macd_value=df["macd"].iloc[-1]
+        if len(close)<30:
 
-    signal=df["signal"].iloc[-1]
+            return "数据不足，无法分析"
 
-    price=df["close"].iloc[-1]
+        df=pd.DataFrame(close,columns=["close"])
 
-    trend="震荡"
+        df["rsi"]=ta.momentum.RSIIndicator(df["close"]).rsi()
 
-    if rsi<30:
+        macd=ta.trend.MACD(df["close"])
 
-        trend="超卖可能反弹"
+        df["macd"]=macd.macd()
+        df["signal"]=macd.macd_signal()
 
-    if rsi>70:
+        rsi=df["rsi"].iloc[-1]
 
-        trend="超买可能回调"
+        macd_value=df["macd"].iloc[-1]
+        signal=df["signal"].iloc[-1]
 
-    if macd_value>signal:
+        price=df["close"].iloc[-1]
 
-        macd_text="多头趋势"
+        if rsi<30:
 
-    else:
+            trend="超卖可能反弹"
 
-        macd_text="空头趋势"
+        elif rsi>70:
 
-    return f"""
+            trend="超买可能回调"
+
+        else:
+
+            trend="震荡"
+
+        if macd_value>signal:
+
+            macd_text="多头"
+
+        else:
+
+            macd_text="空头"
+
+        return f"""
 BTC技术分析
 
-价格:
-${price}
+价格: ${price}
 
-RSI:
-{round(rsi,2)}
+RSI: {round(rsi,2)}
 
-MACD:
-{macd_text}
+MACD趋势: {macd_text}
 
-趋势判断:
-{trend}
+市场状态: {trend}
 """
+
+    except Exception as e:
+
+        return f"分析失败: {e}"
