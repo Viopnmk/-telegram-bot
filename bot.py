@@ -2,184 +2,120 @@ import telebot
 import requests
 import schedule
 import time
-import threading
 import pandas as pd
 import ta
+import threading
 
-TOKEN ="8757297012:AAFycJjVLtGEQxp_WV8cz3VqLFOgEyImzCI"
-CHAT_ID =7637508163
+TOKEN="8757297012:AAFycJjVLtGEQxp_WV8cz3VqLFOgEyImzCI"
+CHAT_ID=7637508163
 
-bot = telebot.TeleBot(TOKEN)
+bot=telebot.TeleBot(TOKEN)
 
-# ======================
 # 获取BTC价格
-# ======================
+def get_btc_price():
 
-def get_btc():
+    url="https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+    data=requests.get(url).json()
 
-    try:
+    return data["bitcoin"]["usd"]
 
-        url="https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
-
-        data=requests.get(url).json()
-
-        return float(data["price"])
-
-    except:
-
-        return 0
-
-
-# ======================
-# 获取K线
-# ======================
-
-def get_klines():
+# 获取K线数据
+def get_kline():
 
     url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
 
     data=requests.get(url).json()
 
-    close=[float(x[4]) for x in data]
+    close=[float(i[4]) for i in data]
 
     df=pd.DataFrame(close,columns=["close"])
 
     return df
 
+# 技术分析
+def analyze():
 
-# ======================
-# RSI指标
-# ======================
+    df=get_kline()
 
-def get_rsi():
-
-    df=get_klines()
-
-    rsi=ta.momentum.RSIIndicator(df["close"]).rsi()
-
-    return rsi.iloc[-1]
-
-
-# ======================
-# MACD指标
-# ======================
-
-def get_macd():
-
-    df=get_klines()
+    df["rsi"]=ta.momentum.RSIIndicator(df["close"]).rsi()
 
     macd=ta.trend.MACD(df["close"])
 
-    macd_line=macd.macd().iloc[-1]
+    df["macd"]=macd.macd()
+    df["signal"]=macd.macd_signal()
 
-    signal_line=macd.macd_signal().iloc[-1]
+    rsi=df["rsi"].iloc[-1]
 
-    if macd_line>signal_line:
+    macd_value=df["macd"].iloc[-1]
+    signal=df["signal"].iloc[-1]
 
-        return "Bullish 📈"
+    price=df["close"].iloc[-1]
 
-    else:
-
-        return "Bearish 📉"
-
-
-# ======================
-# 量化策略
-# ======================
-
-def quant_strategy():
-
-    price=get_btc()
-
-    rsi=get_rsi()
-
-    macd=get_macd()
+    trend="震荡"
 
     if rsi<30:
+        trend="超卖可能反弹"
 
-        signal="可能超卖，考虑做多"
+    if rsi>70:
+        trend="超买可能回调"
 
-    elif rsi>70:
-
-        signal="可能超买，注意回调"
+    if macd_value>signal:
+        macd_text="多头趋势"
 
     else:
+        macd_text="空头趋势"
 
-        signal="市场中性"
+    return f"""
+BTC价格: ${price}
 
-    text=f"""
-📊 BTC Quant Report
+RSI: {round(rsi,2)}
+MACD: {macd_text}
 
-Price
-${price}
-
-RSI
-{rsi:.2f}
-
-MACD
-{macd}
-
-Strategy
-{signal}
+市场判断:
+{trend}
 """
 
-    bot.send_message(CHAT_ID,text)
+# /start
+@bot.message_handler(commands=['start'])
+def start(message):
 
+    bot.reply_to(message,"量化机器人启动成功 🤖")
 
-# ======================
-# 手动命令
-# ======================
-
+# /btc
 @bot.message_handler(commands=['btc'])
-
 def btc(message):
 
-    price=get_btc()
+    price=get_btc_price()
 
-    bot.reply_to(message,f"BTC价格 ${price}")
+    bot.reply_to(message,f"BTC实时价格: ${price}")
 
+# /analysis
+@bot.message_handler(commands=['analysis'])
+def analysis(message):
 
-@bot.message_handler(commands=['quant'])
+    result=analyze()
 
-def quant(message):
+    bot.reply_to(message,result)
 
-    quant_strategy()
-
-
-# ======================
 # 自动推送
-# ======================
+def push():
 
-schedule.every().hour.do(quant_strategy)
+    result=analyze()
 
+    bot.send_message(CHAT_ID,"📊 每小时BTC分析\n"+result)
 
-# ======================
-# 运行定时任务
-# ======================
+schedule.every(1).hours.do(push)
 
+# 定时线程
 def run_schedule():
 
     while True:
 
         schedule.run_pending()
-
-        time.sleep(30)
-
+        time.sleep(10)
 
 threading.Thread(target=run_schedule).start()
 
-
-# ======================
-# 启动提示
-# ======================
-
-try:
-
-    bot.send_message(CHAT_ID,"量化机器人启动成功 🤖")
-
-except:
-
-    pass
-
+print("机器人运行成功")
 
 bot.infinity_polling()
