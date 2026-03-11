@@ -103,3 +103,16 @@ def analysis(message):
 趋势判断: {trend}
 """
     bot.reply_to(message,text)
+
+def whale_check():
+    url="https://api.whale-alert.io/v1/transactions?api_key=demo&min_value=5000000"
+    data=requests.get(url).json()
+
+    if "transactions" in data:
+        tx=data["transactions"][0]
+        amount=tx["amount"]
+        coin=tx["symbol"]
+
+        return f"🐳 巨鲸转账\n\n{amount} {coin}"
+    else:
+        return "暂无巨鲸转账"
