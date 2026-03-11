@@ -116,3 +116,8 @@ def whale_check():
         return f"🐳 巨鲸转账\n\n{amount} {coin}"
     else:
         return "暂无巨鲸转账"
+ 
+               @bot.message_handler(commands=['whale'])
+def whale(message):
+    result=whale_check()
+    bot.reply_to(message,result)
