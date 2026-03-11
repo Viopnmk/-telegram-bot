@@ -158,9 +158,66 @@ def analysis(message):
 
     bot.reply_to(message,"正在分析市场...")
 
-    result=analyze()
+    try:
 
-    bot.send_message(message.chat.id,result)
+        url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
+
+        r=requests.get(url,timeout=10)
+
+        data=r.json()
+
+        close=[float(i[4]) for i in data]
+
+        df=pd.DataFrame(close,columns=["close"])
+
+        # RSI
+        df["rsi"]=ta.momentum.RSIIndicator(df["close"]).rsi()
+
+        # MACD
+        macd=ta.trend.MACD(df["close"])
+
+        df["macd"]=macd.macd()
+        df["signal"]=macd.macd_signal()
+
+        rsi=df["rsi"].iloc[-1]
+
+        macd_value=df["macd"].iloc[-1]
+
+        signal=df["signal"].iloc[-1]
+
+        price=df["close"].iloc[-1]
+
+        trend="震荡"
+
+        if rsi<30:
+            trend="超卖可能反弹"
+
+        if rsi>70:
+            trend="超买可能回调"
+
+        if macd_value>signal:
+            macd_text="多头趋势"
+        else:
+            macd_text="空头趋势"
+
+        text=f"""
+BTC技术分析
+
+价格: ${price}
+
+RSI: {round(rsi,2)}
+
+MACD: {macd_text}
+
+市场判断:
+{trend}
+"""
+
+        bot.send_message(message.chat.id,text)
+
+    except Exception as e:
+
+        bot.send_message(message.chat.id,f"分析失败: {e}")
 
 
 # news
