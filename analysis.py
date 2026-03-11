@@ -6,7 +6,13 @@ def btc_analysis():
 
         url="https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
 
-        data=requests.get(url,timeout=10).json()
+        r=requests.get(url,timeout=10)
+
+        data=r.json()
+
+        if "price" not in data:
+
+            return "行情接口暂时不可用，请稍后再试"
 
         price=float(data["price"])
 
@@ -27,7 +33,7 @@ ${price}
 {trend}
 
 建议:
-等待关键突破
+关注关键突破
 """
 
     except Exception as e:
