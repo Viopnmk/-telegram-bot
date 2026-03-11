@@ -2,36 +2,29 @@ import requests
 
 def btc_price():
 
-    url="https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+    url="https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
 
-    data=requests.get(url).json()
+    r=requests.get(url)
 
-    return data["bitcoin"]["usd"]
+    data=r.json()
+
+    if "price" in data:
+
+        return float(data["price"])
+
+    return None
+
 
 def eth_price():
 
-    url="https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+    url="https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT"
 
-    data=requests.get(url).json()
+    r=requests.get(url)
 
-    return data["ethereum"]["usd"]
+    data=r.json()
 
-def market_data():
+    if "price" in data:
 
-    url="https://api.coingecko.com/api/v3/global"
+        return float(data["price"])
 
-    data=requests.get(url).json()
-
-    cap=data["data"]["total_market_cap"]["usd"]
-
-    btc_dom=data["data"]["market_cap_percentage"]["btc"]
-
-    return f"""
-加密市场
-
-总市值:
-${cap}
-
-BTC占比:
-{btc_dom}%
-"""
+    return None
