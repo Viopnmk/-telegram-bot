@@ -6,7 +6,14 @@ def btc_analysis():
 
     try:
 
-        url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
+        url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=50"
+
+headers={
+"User-Agent":"Mozilla/5.0"
+}
+
+r=requests.get(url,headers=headers,timeout=10)
+data=r.json()
 
         r=requests.get(url,timeout=10)
 
