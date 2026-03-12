@@ -1,6 +1,6 @@
 import telebot
 from config import TOKEN
-from market import btc_price,eth_price,market_data
+from market import btc_price, eth_price
 from analysis import btc_analysis
 from whale import whale_alert
 from news import crypto_news
