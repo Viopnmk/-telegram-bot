@@ -4,71 +4,51 @@ import ta
 
 def btc_analysis():
 
-    try:
+    url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=50"
 
-        url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=50"
+    r=requests.get(url,timeout=10)
 
-        headers={
-            "User-Agent":"Mozilla/5.0"
-        }
+    data=r.json()
 
-        r=requests.get(url,headers=headers,timeout=10)
+    close=[float(i[4]) for i in data if isinstance(i,list)]
 
-        data=r.json()
+    df=pd.DataFrame(close,columns=["close"])
 
-        if not isinstance(data,list):
+    df["rsi"]=ta.momentum.RSIIndicator(df["close"]).rsi()
 
-            return "K线数据获取失败"
+    macd=ta.trend.MACD(df["close"])
 
-        close=[]
+    df["macd"]=macd.macd()
 
-        for i in data:
+    df["signal"]=macd.macd_signal()
 
-            if isinstance(i,list) and len(i)>4:
+    rsi=df["rsi"].iloc[-1]
 
-                close.append(float(i[4]))
+    macd_v=df["macd"].iloc[-1]
 
-        if len(close)<30:
+    signal=df["signal"].iloc[-1]
 
-            return "K线数据不足"
+    if rsi<30:
 
-        df=pd.DataFrame(close,columns=["close"])
+        trend="超卖"
 
-        df["rsi"]=ta.momentum.RSIIndicator(df["close"]).rsi()
+    elif rsi>70:
 
-        macd=ta.trend.MACD(df["close"])
+        trend="超买"
 
-        df["macd"]=macd.macd()
+    else:
 
-        df["signal"]=macd.macd_signal()
+        trend="震荡"
 
-        rsi=df["rsi"].iloc[-1]
+    if macd_v>signal:
 
-        macd_v=df["macd"].iloc[-1]
+        macd_state="多头"
 
-        signal=df["signal"].iloc[-1]
+    else:
 
-        if rsi<30:
+        macd_state="空头"
 
-            trend="超卖"
-
-        elif rsi>70:
-
-            trend="超买"
-
-        else:
-
-            trend="震荡"
-
-        if macd_v>signal:
-
-            macd_state="多头"
-
-        else:
-
-            macd_state="空头"
-
-        return f"""
+    return f"""
 BTC技术分析
 
 RSI: {round(rsi,2)}
@@ -77,7 +57,3 @@ MACD: {macd_state}
 
 市场状态: {trend}
 """
-
-    except Exception as e:
-
-        return f"分析失败: {e}"
