@@ -8,11 +8,25 @@ def btc_analysis():
 
         url="https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
 
-        r=requests.get(url)
+        r=requests.get(url,timeout=10)
 
         data=r.json()
 
-        close=[float(i[4]) for i in data]
+        if not isinstance(data,list):
+
+            return "K线数据获取失败"
+
+        close=[]
+
+        for i in data:
+
+            if isinstance(i,list) and len(i)>4:
+
+                close.append(float(i[4]))
+
+        if len(close)<30:
+
+            return "K线数据不足"
 
         df=pd.DataFrame(close,columns=["close"])
 
@@ -62,4 +76,4 @@ MACD: {macd_state}
 
     except Exception as e:
 
-        return f"分析失败 {e}"
+        return f"分析失败: {e}"
