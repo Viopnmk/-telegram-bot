@@ -1,5 +1,5 @@
-python-telegram-bot
+pyTelegramBotAPI
 requests
 pandas
-schedule
 ta
+schedule
